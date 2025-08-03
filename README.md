@@ -1,5 +1,7 @@
 # PDF to Text Converter
 
+![Simple Image](simple.png)
+
 Convert PDF files to formatted text directly in your browser.
 
 ## How to Use
