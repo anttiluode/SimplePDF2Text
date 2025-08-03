@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF to Text Converter</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            backdrop-filter: blur(10px);
+        }
+
+        .header {
+            background: linear-gradient(135deg, #ff6b6b, #ffa500);
+            color: white;
+            padding: 40px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            font-weight: 700;
+        }
+
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .content {
+            padding: 40px;
+        }
+
+        .upload-section {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .file-input-wrapper {
+            position: relative;
+            display: inline-block;
+            margin-bottom: 20px;
+        }
+
+        .file-input {
+            position: absolute;
+            opacity: 0;
+            width: 100%;
+            height: 100%;
+            cursor: pointer;
+        }
+
+        .file-input-button {
+            display: inline-block;
+            padding: 15px 40px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border-radius: 50px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: none;
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+        }
+
+        .file-input-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 35px rgba(102, 126, 234, 0.4);
+        }
+
+        .file-info {
+            margin: 15px 0;
+            font-size: 1rem;
+            color: #666;
+        }
+
+        .progress-container {
+            width: 100%;
+            background: #f0f0f0;
+            border-radius: 25px;
+            margin: 20px 0;
+            overflow: hidden;
+            display: none;
+        }
+
+        .progress-bar {
+            width: 0%;
+            height: 8px;
+            background: linear-gradient(90deg, #ff6b6b, #ffa500);
+            border-radius: 25px;
+            transition: width 0.3s ease;
+        }
+
+        .convert-button {
+            background: linear-gradient(135deg, #ff6b6b, #ffa500);
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            border-radius: 50px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 8px 25px rgba(255, 107, 107, 0.3);
+            display: none;
+        }
+
+        .convert-button:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 35px rgba(255, 107, 107, 0.4);
+        }
+
+        .convert-button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .output-section {
+            margin-top: 30px;
+            display: none;
+        }
+
+        .output-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .output-header h3 {
+            color: #333;
+            font-size: 1.3rem;
+        }
+
+        .download-button, .copy-button {
+            background: linear-gradient(135deg, #28a745, #20c997);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 25px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-left: 10px;
+        }
+
+        .download-button:hover, .copy-button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 20px rgba(40, 167, 69, 0.3);
+        }
+
+        .text-output {
+            width: 100%;
+            min-height: 300px;
+            padding: 20px;
+            border: 2px solid #e0e0e0;
+            border-radius: 15px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            line-height: 1.8;
+            resize: vertical;
+            background: #fafafa;
+            transition: border-color 0.3s ease;
+            white-space: pre-wrap;
+        }
+
+        .format-options {
+            margin: 15px 0;
+            display: none;
+            align-items: center;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        .format-options label {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 0.9rem;
+            color: #666;
+        }
+
+        .format-options input[type="checkbox"] {
+            transform: scale(1.2);
+        }
+
+        .format-button {
+            background: linear-gradient(135deg, #6c5ce7, #a29bfe);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .format-button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 20px rgba(108, 92, 231, 0.3);
+        }
+
+        .text-output:focus {
+            outline: none;
+            border-color: #667eea;
+            background: white;
+        }
+
+        .status {
+            margin: 15px 0;
+            padding: 15px;
+            border-radius: 10px;
+            font-weight: 500;
+            display: none;
+        }
+
+        .status.success {
+            background: rgba(40, 167, 69, 0.1);
+            color: #28a745;
+            border: 1px solid rgba(40, 167, 69, 0.2);
+        }
+
+        .status.error {
+            background: rgba(220, 53, 69, 0.1);
+            color: #dc3545;
+            border: 1px solid rgba(220, 53, 69, 0.2);
+        }
+
+        .status.processing {
+            background: rgba(255, 193, 7, 0.1);
+            color: #ffc107;
+            border: 1px solid rgba(255, 193, 7, 0.2);
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                margin: 10px;
+                border-radius: 15px;
+            }
+
+            .header {
+                padding: 30px 20px;
+            }
+
+            .header h1 {
+                font-size: 2rem;
+            }
+
+            .content {
+                padding: 30px 20px;
+            }
+
+            .output-header {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 15px;
+            }
+
+            .download-button, .copy-button {
+                margin-left: 0;
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>PDF to Text Converter</h1>
+            <p>Extract text content from your PDF files instantly</p>
+        </div>
+        
+        <div class="content">
+            <div class="upload-section">
+                <div class="file-input-wrapper">
+                    <input type="file" id="pdfFile" class="file-input" accept=".pdf">
+                    <button class="file-input-button">Choose PDF File</button>
+                </div>
+                <div class="file-info" id="fileInfo">No file selected</div>
+                
+                <div class="progress-container" id="progressContainer">
+                    <div class="progress-bar" id="progressBar"></div>
+                </div>
+                
+                <button class="convert-button" id="convertButton">Convert to Text</button>
+                
+                <div class="status" id="status"></div>
+            </div>
+            
+            <div class="output-section" id="outputSection">
+                <div class="output-header">
+                    <h3>Extracted Text</h3>
+                    <div>
+                        <button class="copy-button" id="copyButton">Copy Text</button>
+                        <button class="download-button" id="downloadButton">Download as TXT</button>
+                    </div>
+                </div>
+                
+                <div class="format-options" id="formatOptions">
+                    <label>
+                        <input type="checkbox" id="fixLineBreaks" checked>
+                        Fix Line Breaks
+                    </label>
+                    <label>
+                        <input type="checkbox" id="fixSpacing" checked>
+                        Fix Word Spacing
+                    </label>
+                    <label>
+                        <input type="checkbox" id="preserveEquations" checked>
+                        Format Equations
+                    </label>
+                    <label>
+                        <input type="checkbox" id="addParagraphs" checked>
+                        Add Paragraphs
+                    </label>
+                    <button class="format-button" id="reFormatButton">Re-format Text</button>
+                </div>
+                
+                <textarea class="text-output" id="textOutput" placeholder="Extracted text will appear here..."></textarea>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Configure PDF.js worker
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+        const fileInput = document.getElementById('pdfFile');
+        const fileInfo = document.getElementById('fileInfo');
+        const convertButton = document.getElementById('convertButton');
+        const progressContainer = document.getElementById('progressContainer');
+        const progressBar = document.getElementById('progressBar');
+        const status = document.getElementById('status');
+        const outputSection = document.getElementById('outputSection');
+        const textOutput = document.getElementById('textOutput');
+        const copyButton = document.getElementById('copyButton');
+        const downloadButton = document.getElementById('downloadButton');
+        const formatOptions = document.getElementById('formatOptions');
+        const reFormatButton = document.getElementById('reFormatButton');
+
+        let selectedFile = null;
+        let extractedText = '';
+        let rawText = '';
+
+        fileInput.addEventListener('change', function(e) {
+            selectedFile = e.target.files[0];
+            if (selectedFile) {
+                if (selectedFile.type !== 'application/pdf') {
+                    showStatus('Please select a valid PDF file.', 'error');
+                    return;
+                }
+                
+                fileInfo.textContent = `Selected: ${selectedFile.name} (${formatFileSize(selectedFile.size)})`;
+                convertButton.style.display = 'inline-block';
+                hideStatus();
+            } else {
+                fileInfo.textContent = 'No file selected';
+                convertButton.style.display = 'none';
+                outputSection.style.display = 'none';
+            }
+        });
+
+        convertButton.addEventListener('click', convertPdfToText);
+        copyButton.addEventListener('click', copyToClipboard);
+        downloadButton.addEventListener('click', downloadText);
+        reFormatButton.addEventListener('click', reFormatText);
+
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        async function convertPdfToText() {
+            if (!selectedFile) return;
+
+            convertButton.disabled = true;
+            convertButton.textContent = 'Converting...';
+            progressContainer.style.display = 'block';
+            showStatus('Processing PDF file...', 'processing');
+
+            try {
+                const arrayBuffer = await selectedFile.arrayBuffer();
+                const pdf = await pdfjsLib.getDocument(arrayBuffer).promise;
+                const totalPages = pdf.numPages;
+                let fullText = '';
+
+                for (let pageNum = 1; pageNum <= totalPages; pageNum++) {
+                    const progress = (pageNum / totalPages) * 100;
+                    progressBar.style.width = progress + '%';
+                    
+                    showStatus(`Processing page ${pageNum} of ${totalPages}...`, 'processing');
+
+                    const page = await pdf.getPage(pageNum);
+                    const textContent = await page.getTextContent();
+                    
+                    let pageText = '';
+                    textContent.items.forEach(item => {
+                        pageText += item.str + ' ';
+                    });
+                    
+                    if (pageText.trim()) {
+                        fullText += `--- Page ${pageNum} ---\n${pageText.trim()}\n\n`;
+                    }
+                }
+
+                extractedText = fullText.trim();
+                rawText = extractedText; // Store raw text for re-formatting
+                
+                // Apply initial formatting
+                extractedText = formatText(extractedText);
+                textOutput.value = extractedText;
+                
+                if (extractedText) {
+                    outputSection.style.display = 'block';
+                    formatOptions.style.display = 'flex';
+                    showStatus(`Successfully extracted text from ${totalPages} pages!`, 'success');
+                } else {
+                    showStatus('No text content found in the PDF file.', 'error');
+                }
+
+            } catch (error) {
+                console.error('Error processing PDF:', error);
+                showStatus('Error processing PDF file. Please try again.', 'error');
+            } finally {
+                convertButton.disabled = false;
+                convertButton.textContent = 'Convert to Text';
+                progressContainer.style.display = 'none';
+                progressBar.style.width = '0%';
+            }
+        }
+
+        function copyToClipboard() {
+            textOutput.select();
+            textOutput.setSelectionRange(0, 99999);
+            
+            try {
+                document.execCommand('copy');
+                copyButton.textContent = 'Copied!';
+                setTimeout(() => {
+                    copyButton.textContent = 'Copy Text';
+                }, 2000);
+            } catch (err) {
+                console.error('Failed to copy text:', err);
+            }
+        }
+
+        function downloadText() {
+            if (!extractedText) return;
+
+            const filename = selectedFile ? selectedFile.name.replace('.pdf', '.txt') : 'extracted_text.txt';
+            const blob = new Blob([extractedText], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        function formatText(text) {
+            let formatted = text;
+
+            if (document.getElementById('fixSpacing').checked) {
+                // Fix excessive spacing between words
+                formatted = formatted.replace(/\s{2,}/g, ' ');
+                // Fix broken words across lines
+                formatted = formatted.replace(/(\w)-\s+(\w)/g, '$1$2');
+            }
+
+            if (document.getElementById('fixLineBreaks').checked) {
+                // Fix broken sentences across lines
+                formatted = formatted.replace(/([a-z,])\s*\n\s*([a-z])/g, '$1 $2');
+                // Keep intentional line breaks (after periods, colons, etc.)
+                formatted = formatted.replace(/([.!?:;])\s*\n+/g, '$1\n\n');
+                // Fix equations and mathematical expressions
+                formatted = formatted.replace(/([=+\-*/])\s*\n+\s*/g, '$1 ');
+            }
+
+            if (document.getElementById('preserveEquations').checked) {
+                // Format mathematical equations better
+                formatted = formatted.replace(/([A-Za-z])\s*=\s*([^.\n]+)/g, '\n$1 = $2\n');
+                // Format matrix notation
+                formatted = formatted.replace(/\[\s*([^\]]+)\s*\]/g, '[$1]');
+                // Format Greek letters and mathematical symbols
+                formatted = formatted.replace(/\b(theta|alpha|beta|gamma|delta|epsilon|lambda|mu|sigma|pi|omega)\b/gi, 'θ');
+                formatted = formatted.replace(/\bdegrees?\b/g, '°');
+            }
+
+            if (document.getElementById('addParagraphs').checked) {
+                // Add paragraph breaks for better readability
+                formatted = formatted.replace(/\.\s+([A-Z])/g, '.\n\n$1');
+                // Format figure references
+                formatted = formatted.replace(/(Figure\s+\d+[^.]*\.)/gi, '\n$1\n');
+                // Format equation references
+                formatted = formatted.replace(/(Equation\s+\d+[^.]*\.)/gi, '\n$1\n');
+            }
+
+            // Clean up excessive newlines
+            formatted = formatted.replace(/\n{3,}/g, '\n\n');
+            
+            return formatted.trim();
+        }
+
+        function reFormatText() {
+            if (rawText) {
+                extractedText = formatText(rawText);
+                textOutput.value = extractedText;
+            }
+        }
+
+        function showStatus(message, type) {
+            status.textContent = message;
+            status.className = `status ${type}`;
+            status.style.display = 'block';
+        }
+
+        function hideStatus() {
+            status.style.display = 'none';
+        }
+
+        // Drag and drop functionality
+        const container = document.querySelector('.container');
+
+        container.addEventListener('dragover', function(e) {
+            e.preventDefault();
+            container.style.opacity = '0.8';
+        });
+
+        container.addEventListener('dragleave', function(e) {
+            e.preventDefault();
+            container.style.opacity = '1';
+        });
+
+        container.addEventListener('drop', function(e) {
+            e.preventDefault();
+            container.style.opacity = '1';
+            
+            const files = e.dataTransfer.files;
+            if (files.length > 0 && files[0].type === 'application/pdf') {
+                fileInput.files = files;
+                fileInput.dispatchEvent(new Event('change'));
+            }
+        });
+    </script>
+</body>
+</html>
